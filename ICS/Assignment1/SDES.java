@@ -8,8 +8,16 @@ public class SDES {
 	private static final int[] IP = { 2, 6, 3, 1, 4, 8, 5, 7 };	
 	private static final int[] IP_INV = { 4, 1, 3, 5, 7, 2, 8, 6};	
 	private static final int[] EP = { 4, 1, 2, 3, 2, 3, 4, 1 };
+	private static final int[] P4 = { 2,4,3,1 };
+	private static final int[][] SBOX0 = { { 1,0,3,2 }, { 3,2,1,0 }, { 0,2,1,3 }, { 3,1,3,2 } };
+	private static final int[][] SBOX1 = { { 0,1,2,3 }, { 2,0,1,3 }, { 3,0,1,0 }, { 2,1,0,3 } };
+
 	private static int[] key1 = null;
 	private static int[] key2 = null;
+
+	public SDES(String key) {
+		generateKeys(key);
+	}
 	
 	private int[] permute(int key[], int type[]) {
 		int res[] = new int[type.length];
@@ -33,50 +41,161 @@ public class SDES {
 		}
 	}
 	
-	public void generateKeys(String inputKey) {
+	private void generateKeys(String inputKey) {
+		//converting string key into int array
 		int[] key = new int[inputKey.length()];
 		for(int i = 0 ; i < inputKey.length() ; i++) {
 			key[i] = Integer.parseInt(String.valueOf(inputKey.charAt(i)));
 		}
+		//p10 permute
 		key = permute(key, P10);
-		int l[] = new int[5];
-		int r[] = new int[5];
-		System.arraycopy(key, 0, l, 0, 5);
-		System.arraycopy(key, 5, r, 0, 5);
-		shift(l, 1);
-		shift(r, 1);
-		System.arraycopy(l, 0, key, 0, 5);
-		System.arraycopy(r, 0, key, 5, 5);
+		
+		//dividing the key into two halves - left and right half
+		int leftHalf[] = new int[5];
+		int rightHalf[] = new int[5];
+		System.arraycopy(key, 0, leftHalf, 0, 5);
+		System.arraycopy(key, 5, rightHalf, 0, 5);
+
+		//shifting the left and right halfs by 1
+		shift(leftHalf, 1);
+		shift(rightHalf, 1);
+
+		//merging the left and right halfs
+		System.arraycopy(leftHalf, 0, key, 0, 5);
+		System.arraycopy(rightHalf, 0, key, 5, 5);
+
+		//p8 permute and store the result into key1
 		key1 = permute(key, P8);
-		shift(l, 2);
-		shift(r, 2);
-		System.arraycopy(l, 0, key, 0, 5);
-		System.arraycopy(r, 0, key, 5, 5);
+
+		//shift the left and right half by 2
+		shift(leftHalf, 2);
+		shift(rightHalf, 2);
+
+		System.arraycopy(leftHalf, 0, key, 0, 5);
+		System.arraycopy(rightHalf, 0, key, 5, 5);
+
+		//p8 permute and store the result into key2
 		key2 = permute(key, P8);
+
+		//generated keys
 		System.out.println("Key1: "+Arrays.toString(key1));
 		System.out.println("Key2: "+Arrays.toString(key2));
 	}
-	
-	public void encrypt(String input) {
-		int[] text = new int[8];
-		for(int i = 0 ; i < 8 ; i++) {
-			text[i] = Integer.parseInt(String.valueOf(input.charAt(i)));
-		}
-		text = permute(text, IP);
-		System.out.println("Initial Permutation: "+Arrays.toString(text));
 
+
+	private int binToDec(int a, int b) {
+		if(a == 0 && b == 0) return 0;
+		else if(a == 0 && b == 1) return 1;
+		else if(a == 1 && b == 0) return 2;
+		else return 3;
+	}
+
+	private int[] DecToBin(int num) {
+		if(num == 0) return new int[] {0,0};
+		else if(num == 1) return new int[] {0,1};
+		else if(num == 2) return new int[] {1,0};
+		else return new int[] {1,1};
+	}
+
+	private int[] getSBoxResult(int subBlock[], int[][] sbox) {
+		int rowNo = binToDec(subBlock[0],subBlock[3]);
+		int columnNo = binToDec(subBlock[1],subBlock[2]);
+		return DecToBin(sbox[rowNo][columnNo]);
+	}
+	
+	private int[] fk(int[] rBlock, int key[], int[] lBlock) {
+		//expand and permute the right blocks
+		int expandedSubBlock[] = permute(rBlock, EP);
+		System.out.println("EP res: "+Arrays.toString(expandedSubBlock));
+
+		//XOR the EP res with key1
+		for(int i = 0 ; i < expandedSubBlock.length ; i++) {
+			expandedSubBlock[i] = expandedSubBlock[i] ^ key[i];
+		}
+		System.out.println("Res after XOR with key: "+Arrays.toString(expandedSubBlock));
+		
+		int left[] = new int[4];
+		int right[] = new int[4];
+		System.arraycopy(expandedSubBlock, 0, left, 0, 4);
+		System.arraycopy(expandedSubBlock, 4, right, 0, 4);
+
+		//pass left block to SBOX0
+		int sBox0Res[] = getSBoxResult(left, SBOX0);
+		System.out.println("SBox0 res: "+Arrays.toString(sBox0Res));
+		
+		//pass right block to SBOX1
+		int sBox1Res[] = getSBoxResult(right, SBOX1);
+		System.out.println("SBox1 res: "+Arrays.toString(sBox1Res));
+
+		int combineSBoxesRes[] = new int[4];
+		System.arraycopy(sBox0Res, 0, combineSBoxesRes, 0, 2);
+		System.arraycopy(sBox1Res, 0, combineSBoxesRes, 2, 2);
+		System.out.println("SBoxes combine res: "+Arrays.toString(combineSBoxesRes));
+
+		//p4 permutation
+		int P4PermRes[] =  permute(combineSBoxesRes, P4);
+		System.out.println("Result after P4 Permutation: "+Arrays.toString(P4PermRes));
+
+		//XOR P4 Perm result with left block
+		for(int i = 0 ; i < lBlock.length ; i++) {
+			P4PermRes[i] = P4PermRes[i] ^ lBlock[i];
+		}
+
+		System.out.println("Result after XOR with left half: "+Arrays.toString(P4PermRes));
+		return P4PermRes;
+	}
+
+	public void encrypt(String input) {
+		//create 8bit msg block 
+		int[] msgBlock = new int[8];
+		for(int i = 0 ; i < 8 ; i++) {
+			msgBlock[i] = Integer.parseInt(String.valueOf(input.charAt(i)));
+		}
+
+		//initial permutation
+		msgBlock = permute(msgBlock, IP);
+		System.out.println("Initial Permutation Res: "+Arrays.toString(msgBlock));
+
+		//divide 8bit msgblock into left and right halfs
+		int leftHalf[] = new int[4];
+		int rightHalf[] = new int[4];
+		System.arraycopy(msgBlock, 0, leftHalf, 0, 4);
+		System.arraycopy(msgBlock, 4, rightHalf, 0, 4);
+		System.out.println("left block: "+Arrays.toString(leftHalf));
+		System.out.println("right block: "+Arrays.toString(rightHalf));
+
+		System.out.println("\n***** First fk Round *****");
+		//first round - fk function with key1
+		int fk1Res[] = fk(rightHalf, key1, leftHalf);
+		System.out.println("fk1 Result: "+Arrays.toString(fk1Res));
+		
+		//swap function
+		leftHalf = rightHalf;
+		rightHalf = fk1Res;
+
+		System.out.println("\n***** Second fk Round *****");
+		//second round - fk function with key2
+		int fk2Res[] = fk(fk1Res,key2,leftHalf);
+		System.out.println("fk2 Result: "+Arrays.toString(fk2Res));
+
+		int res[] = new int[8];
+		System.arraycopy(fk2Res, 0, res, 0, 4);
+		System.arraycopy(rightHalf, 0, res, 4, 4);
+		System.out.println("Result after both rounds: "+Arrays.toString(res));
+
+		//inverse initial permutation
+		int encrypedRes[] = permute(res, IP_INV);
+		System.out.println("Encrypted Msg: "+Arrays.toString(encrypedRes));
 	}
 	
 	public static void main(String[] args) {
-		SDES sdes = new SDES();
-		String key = null;
-		String text = null;
+		String key = null, msg = null;
 		Scanner sc = new Scanner(System.in);
 		System.out.print("Enter 10-bit key: ");
 		key = sc.next();
-		sdes.generateKeys(key);
+		SDES sdes = new SDES(key);
 		System.out.print("Enter plain text for encryption: ");
-		text = sc.nextLine() + sc.nextLine();
-		sdes.encrypt(text);
+		msg = sc.nextLine() + sc.nextLine();
+		sdes.encrypt(msg);
 	}
 }
