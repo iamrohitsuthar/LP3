@@ -144,7 +144,7 @@ public class SDES {
 		return P4PermRes;
 	}
 
-	public void encrypt(String input) {
+	public String encrypt(String input) {
 		//create 8bit msg block 
 		int[] msgBlock = new int[8];
 		for(int i = 0 ; i < 8 ; i++) {
@@ -163,7 +163,7 @@ public class SDES {
 		System.out.println("left block: "+Arrays.toString(leftHalf));
 		System.out.println("right block: "+Arrays.toString(rightHalf));
 
-		System.out.println("\n***** First fk Round *****");
+		System.out.println("\n***** First Round - fk1 *****");
 		//first round - fk function with key1
 		int fk1Res[] = fk(rightHalf, key1, leftHalf);
 		System.out.println("fk1 Result: "+Arrays.toString(fk1Res));
@@ -172,7 +172,7 @@ public class SDES {
 		leftHalf = rightHalf;
 		rightHalf = fk1Res;
 
-		System.out.println("\n***** Second fk Round *****");
+		System.out.println("\n***** Second Round - fk2 *****");
 		//second round - fk function with key2
 		int fk2Res[] = fk(fk1Res,key2,leftHalf);
 		System.out.println("fk2 Result: "+Arrays.toString(fk2Res));
@@ -180,11 +180,66 @@ public class SDES {
 		int res[] = new int[8];
 		System.arraycopy(fk2Res, 0, res, 0, 4);
 		System.arraycopy(rightHalf, 0, res, 4, 4);
-		System.out.println("Result after both rounds: "+Arrays.toString(res));
+		System.out.println("\nResult before IP inverse: "+Arrays.toString(res));
 
 		//inverse initial permutation
 		int encrypedRes[] = permute(res, IP_INV);
-		System.out.println("Encrypted Msg: "+Arrays.toString(encrypedRes));
+
+		//return the encrypted message
+		StringBuilder builder = new StringBuilder();
+		for(int ele: encrypedRes) {
+			builder.append(ele);
+		}
+		return builder.toString();
+	}
+
+	public String decrypt(String encryptedInput) {
+		//create 8bit msg block 
+		int[] msgBlock = new int[8];
+		for(int i = 0 ; i < 8 ; i++) {
+			msgBlock[i] = Integer.parseInt(String.valueOf(encryptedInput.charAt(i)));
+		}
+
+		//initial permutation
+		msgBlock = permute(msgBlock, IP);
+		System.out.println("Initial Permutation Res: "+Arrays.toString(msgBlock));
+
+		//divide 8bit msgblock into left and right halfs
+		int leftHalf[] = new int[4];
+		int rightHalf[] = new int[4];
+		System.arraycopy(msgBlock, 0, leftHalf, 0, 4);
+		System.arraycopy(msgBlock, 4, rightHalf, 0, 4);
+		System.out.println("left block: "+Arrays.toString(leftHalf));
+		System.out.println("right block: "+Arrays.toString(rightHalf));
+
+		System.out.println("\n***** First Round - fk1 *****");
+		//first round - fk function with key1
+		int fk1Res[] = fk(rightHalf, key2, leftHalf);
+		System.out.println("fk1 Result: "+Arrays.toString(fk1Res));
+		
+		//swap function
+		leftHalf = rightHalf;
+		rightHalf = fk1Res;
+
+		System.out.println("\n***** Second Round - fk2 *****");
+		//second round - fk function with key2
+		int fk2Res[] = fk(fk1Res,key1,leftHalf);
+		System.out.println("fk2 Result: "+Arrays.toString(fk2Res));
+
+		int res[] = new int[8];
+		System.arraycopy(fk2Res, 0, res, 0, 4);
+		System.arraycopy(rightHalf, 0, res, 4, 4);
+		System.out.println("\nResult before IP inverse: "+Arrays.toString(res));
+
+		//inverse initial permutation
+		int decryptedRes[] = permute(res, IP_INV);
+
+		//return the decrypted message
+		StringBuilder builder = new StringBuilder();
+		for(int ele: decryptedRes) {
+			builder.append(ele);
+		}
+		return builder.toString();
 	}
 	
 	public static void main(String[] args) {
@@ -195,6 +250,13 @@ public class SDES {
 		SDES sdes = new SDES(key);
 		System.out.print("Enter plain text for encryption: ");
 		msg = sc.nextLine() + sc.nextLine();
-		sdes.encrypt(msg);
+
+		System.out.println("\n***** ENCRYPTION *****");
+		String encryptedMsg = sdes.encrypt(msg);
+		System.out.println("Encrypted Message: "+encryptedMsg);
+
+		System.out.println("\n***** DECRYPTION *****");
+		String decryptedMsg = sdes.decrypt(encryptedMsg);
+		System.out.println("Decrypted Message: "+decryptedMsg);
 	}
 }
