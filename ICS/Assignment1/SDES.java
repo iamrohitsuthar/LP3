@@ -82,7 +82,6 @@ public class SDES {
 		System.out.println("Key2: "+Arrays.toString(key2));
 	}
 
-
 	private int binToDec(int a, int b) {
 		if(a == 0 && b == 0) return 0;
 		else if(a == 0 && b == 1) return 1;
