@@ -101,8 +101,8 @@ public class SimplifiedAdvancedEncryptionStandard {
 		String shiftRowResult = shiftRow(nibbleSubstitution(roundZeroResult, SBOX));
 		String matrix[][] = new String[2][2];
 		matrix[0][0] = shiftRowResult.substring(0,4);
-		matrix[0][1] = shiftRowResult.substring(4,8);
-		matrix[1][0] = shiftRowResult.substring(8,12);
+		matrix[0][1] = shiftRowResult.substring(8,12);
+		matrix[1][0] = shiftRowResult.substring(4,8);
 		matrix[1][1] = shiftRowResult.substring(12,16);
 
 		StringBuilder sb = new StringBuilder();
